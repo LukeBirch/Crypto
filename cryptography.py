@@ -19,7 +19,6 @@ def keygen(q,n,m):
     # Change to galois
     # Change dot product to galois
     b = (np.dot(A,s) + e) % q
-    
     public_key = (A,b)
     private_key = s
 
@@ -29,40 +28,16 @@ def keygen(q,n,m):
 # Public key is a pair (A, b) of NumPy integer arrays
 def encrypt(plaintext, public_key, q):
     length = len(plaintext)
-    #print(len(public_key[1]))
-    #dimensions = np.shape(public_key[1])
     matrix_length = len(public_key[1])
-    #print(dimensions)
-    # Encryption of first bit
-    pt = plaintext[0]
     r = np.random.randint(0, 2, (1,matrix_length))
-    a_complete = np.dot(r,public_key[0]) % 13
-    b_complete =  ((np.dot(r,public_key[1]) + pt * q/2 )) % 13 
-
-    #print(a_complete.dtype)
-    #print(b_complete.dtype)
-    #print(a_complete[0])
-    #print(len(a_complete[0]))
-    #print(matrix_length)
-    
-    #final_array = np.empty((a_complete,b_complete),shape=(len(a_complete[0]),1),dtype=np.object)
-    #final_array = np.empty(((a_complete, b_complete)),dtype=np.object)
-    #final_array = np.ndarray((a_complete, b_complete),shape=(len(a_complete[0]),1),dtype=np.object)
-    #final_array = np.array(a_complete,b_complete)
     final_array = np.zeros(shape=length, dtype=object)
-
-    #final_array = np.empty((3,0))
-    #object = [(a_complete),(a_complete)]
-    entry = ((a_complete),(b_complete))
-    final_array[0] = entry
-    # Encryption of remaining bits
-    for i in range(length - 1):
-        pt = plaintext[i+1]
+    # Encryption of bits
+    for i in range(length):
+        pt = plaintext[i]
         r = np.random.randint(0, 2, (1,matrix_length))
         a = [np.dot(r,public_key[0]) % 13]
         b =  ((np.dot(r,public_key[1]) + pt * q/2 )) % 13 
-        final_array[i+1] = ((a),(b))
-    #print(final_array)
+        final_array[i] = ((a),(b))
     return (final_array)
 
 # keygen(q,n,m)
@@ -76,44 +51,16 @@ print(plaintext)
 
 ciphertext = encrypt(plaintext, public_key, 13)
 
-#print(ciphertext.dtype())
-
 def decrypt(ciphertext, private_key, q):
-    text = []
-    #print(ciphertext)
-    #print(ciphertext[0])
-    #print(ciphertext[0][1])
-    print(ciphertext[0][0].shape,"cipherhspae")
-    print("provate key",(private_key))
-    print((private_key.dtype))
-    print(private_key.shape,"private shape")
-    final_text = np.zeros(shape=len(ciphertext))
+    final_text = np.zeros(shape=len(ciphertext),dtype=int)
     for i in range(len(ciphertext)):
-        v = (np.dot(ciphertext[i][0], private_key)) % 13
-        m = (ciphertext[i][1] - v) % 13
+        v = (np.dot(ciphertext[i][0], private_key)) % q
+        m = (ciphertext[i][1] - v) % q
         m = np.floor(abs(m))
-        #print(m,"m")
-        # if m is closer to 0 then pt = 0 or q/2 then pt = 1
-        #print(len(ciphertext))
-        #print(final_text)
-        # if all([bool(abs(m - q/2) < m) and bool(abs(m - q/2) < abs(q - m))]):
         if abs(m - q/2) < m and abs(m - q/2) < abs(q - m):
-            text = text + [1]
             final_text[i] = 1
-        else:
-            text = text + [0]
-        #if abs(m - q/2) > m:
-        #    text = text + [0]
-        #elif abs(m - q/2) > abs(q - m):
-        #    text = text + [0]
-        #else:
-        #    text = text + [1]     
-        #if all([(abs(m - q/2) < m), (abs(m - q/2) < abs(q - m))]):
-        #    text = text + [1]
-        #else:
-        #    text = text + [0]
-    print(final_text)
     return final_text
+
 decrypt(ciphertext, private_key, 13)
 
 
@@ -121,17 +68,15 @@ decrypt(ciphertext, private_key, 13)
 #True Plaintext:  [1 0 1 1 1 1 1 0 1 1 0 1 0 0 1 1 0 0 0 1]
 plaintext1 = np.array([1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1])
 
+print(plaintext1)
+
 public_key1, private_key1 = keygen(16,300,53)
 
-ciphertext1 = encrypt(plaintext, public_key1, 53)
+ciphertext1 = encrypt(plaintext1, public_key1, 53)
 
-decrypt(ciphertext1, public_key1, 53)
+decrypt(ciphertext1, private_key1, 53)
 
-encrypt(plaintext1)
-
-
-
-encrypt()
+#encrypt(plaintext1)
 
 def crack1(ciphertext, public_key, q):
 
