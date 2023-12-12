@@ -10,12 +10,12 @@ def keygen(q,n,m):
     A = np.random.randint(0, q, (m,n))
     s = np.random.randint(0, q, (n,1))
     e = np.random.randint(-1, 2, (m,1))
-    e = np.random.choice(3,m,p=[0.1,0.8,0.1])
-    e = e - 1
-    e = np.atleast_2d(e)
-    e = np.transpose(e)
+    #e = np.random.choice(3,m,p=[0.1,0.8,0.1])
+    #e = e - 1
+    #e = np.atleast_2d(e)
+    #e = np.transpose(e)
     
-    print(e,"e")
+   # print(e,"e")
     b = (np.dot(A,s) + e) % q
     public_key = (A,b)
     private_key = s
@@ -77,15 +77,9 @@ def crack1(ciphertext, public_key, q):
     plaintext = decrypt(ciphertext,x,q)
     return plaintext
 
-#plaintext = crack1(ciphertext,public_key,53)
-
 public_key, private_key = keygen(13,4,14)
 plaintext = np.random.randint(0,2,(1,8))[0] 
 ciphertext = encrypt(plaintext, public_key, 13)
-#crack1(ciphertext,public_key,13)
-print(private_key,"correct key")
-# crack2 is to crack where there is a non-zero distribution where it is 1 or -1 with low probablity 
-# and is otherwise 0
 
 def crack2(ciphertext, public_key, q):
     GF = galois.GF(q)
@@ -95,60 +89,49 @@ def crack2(ciphertext, public_key, q):
     b = GF(np.array(public_key[1],dtype=int))
 
     smaller_dimension = A.shape[1]
-    copy = smaller_dimension
-    shape_needed = (1,smaller_dimension)
-    e = np.zeros(length)
-    i = 0
-    potential_secrets = np.zeros((length - smaller_dimension, smaller_dimension),dtype=int)
-    while smaller_dimension < length: 
-        A_reduced = A[i:smaller_dimension]
-        A_reduced = GF(A_reduced)
-        try:
-            A_reduced_inv = np.linalg.inv(A_reduced)
-            b_reduced = b[i:smaller_dimension]
-            A_reduced_inv = GF(A_reduced_inv)
-            b_reduced = GF(b_reduced)
-            x = np.matmul(A_reduced_inv,b_reduced) 
-            x = np.array(x, dtype=int)
-        except:
-            x = np.zeros(copy)
-        potential_secrets[i] = x.flatten()
-        smaller_dimension = smaller_dimension + 1
-        i = i + 1
-    #print(potential_secrets.flatten())
-    #np.delete(potential_secrets, np.zeros(copy))
-    print(potential_secrets)
-    potential_secrets = potential_secrets[~np.all(potential_secrets == 0, axis=1)]
-    print(potential_secrets)
-    #for i in potential_secrets:
-    #    if np.all(0) == True:
-    #        potential_secrets.
+    base_case = np.zeros((length),dtype=int)
+    for i in range(length):
+        base_case[i] = i    
+    larger_dimension_q = A.shape[0] * q * A.shape[1]
+    potential_secrets = np.zeros((larger_dimension_q, smaller_dimension),dtype=int)
+
+    for i in range(len(potential_secrets)):
+        check = 0
+        while check == 0:
+            try:
+                A_reduced = A[np.random.permutation(base_case)[0:smaller_dimension]]
+                A_reduced = GF(A_reduced)
+                A_reduced_inv = np.linalg.inv(A_reduced)
+                A_reduced_inv = GF(A_reduced)
+                b_reduced = b[np.random.permutation(base_case)[0:smaller_dimension]]
+                b_reduced = GF(b_reduced)
+                x = np.matmul(A_reduced_inv,b_reduced)
+                potential_secrets[i] = x.flatten()
+                check = 1
+            except:
+                continue
+      
     mode = scipy.stats.mode(potential_secrets)
     x = mode[0]
-    x = np.transpose(x)
-    print(x,"x")
+    x = np.transpose(x) 
     plaintext = decrypt(ciphertext,x,q)
-
-
-    # We want all array = 0 all array = 1 all array = -1
-    #while 0 in e:
-    #    permutations  = more_itertools.distinct_permutations(e)
-    #    for possible_e in permutations:
-    #        print(possible_e)
-    #    e[i] = 1
-    #    i = i + 1
-    #for numbers in itertools.product([0, 1], repeat=5):
-    #    print(numbers)
-    
-    #shortest_vector =  np.array([[e],[1]])
-
     return plaintext
 
-crack2(ciphertext,public_key,13)
+plaintext = np.array([0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1])
+public_key, private_key = keygen(29,12,20)
+ciphertext = encrypt(plaintext, public_key, 29)
+
+public_key, private_key = keygen(13,4,14)
+plaintext = np.random.randint(0,2,(1,8))[0] 
+ciphertext = encrypt(plaintext, public_key, 13)
+
+print(crack2(ciphertext,public_key,13))
+print(plaintext)
 
 #crack3 is with an appropiate distribution
 
 def crack3(ciphertext, public_key, q):
+    # Creating a Latice basis 
     GF = galois.GF(q)
     A = np.array(public_key[0],dtype=int)
     b = np.array(public_key[1],dtype=int)
@@ -157,12 +140,77 @@ def crack3(ciphertext, public_key, q):
     print(b)
     matrix_B_part = np.append(A,b,axis=1)
     bottom_row_length = matrix_B_part[0].shape[0]
-    bottom_line = np.zeros(bottom_row_length)
+    bottom_line = np.zeros(bottom_row_length, dtype=int)
     bottom_line[bottom_row_length-1] = 1
     B = np.vstack((matrix_B_part,bottom_line))
+    B = np.array(B,dtype=int)
+    print(B.dtype,"B dtype")
     B = GF(np.array(B,dtype=int))
-    print(B)
+    #
+    base_case = np.zeros((length),dtype=int)
+    for i in range(length):
+        base_case[i] = i   
+    smaller_dimension = A.shape[1]
+    list_permutations = np.array(more_itertools.distinct_permutations(base_case,smaller_dimension))
+    print(list_permutations,"list_permutations")
+    potential_secrets = np.zeros((len(list_permutations), smaller_dimension),dtype=int)
+    #
+    # Perform Gram-Schmidt on B / Proabably wrong currently
+    length = B.shape[1]
+    B_transposed = B.transpose()
+    #np.linalg.norm(B[:,0]) = np.linalg.norm(B[:,0]) / np.linalg.norm(B[:,0])
+    norm = np.linalg.norm(B_transposed[0])
+    norm = np.floor(abs(norm) % q)
+    norm = int(norm)
+    #print(norm.dtype,"norm dtpye")
+    norm = GF(norm)
+    B_transposed[0] = B_transposed[0] / norm
+    #print(B_transposed[0],"B_transposed[0]")
+    i = 1 
+    copy = 0
+    print(length,"length")
+    while i < length - 1:
+        e = B_transposed[i]
+        if copy == i:
+            i = i + 1
+            copy = 0
+        while copy < i:
+            #print(copy,"copy")
+            #print(i,"i")
+            e = e - B_transposed[copy]*(np.dot(B_transposed[copy],B_transposed[i]))
+            copy = copy + 1
+            if copy == i:
+                B_transposed[i] = e
+                #print(B_transposed[i],"B_transposed[i]",i)
+
+            #print(copy,"copy")
+    B = B_transposed.transpose()
+
+    norms = np.zeros(length)
+    for k in range(length):
+        norms[k] = np.linalg.norm(B[:,k])
+    shortest = np.argmin(norms)
+    shortest_vector = B[:,shortest]
+    print(shortest_vector,"shortest_vector")
+    x = shortest_vector[0:(len(shortest_vector)-1)]
+    x = GF(x)
+    x = np.transpose(x)
+    # b - e = A * s
+    b = GF(b)
     
+    #   
+    x = np.atleast_2d(x)
+    x = np.transpose(x)
+
+    #print(b,"b")
+    #print(x,"x")
+    #print(b - x,"b - x")    
+    # b - x = A * s
+    b_x = b - x
+    A = GF(A)
+    s = np.linalg.solve(A[:4],(b_x[:4]))
+    print(s,"s")
+
     return 0
 
 #crack3(ciphertext,public_key,13)
