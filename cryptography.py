@@ -4,16 +4,19 @@ import galois
 import scipy
 import itertools
 import more_itertools
+import logging
+
+#logging.basicConfig(filename='crack2.log', filemode='w', level=logging.INFO)
 
 def keygen(q,n,m):
 
     A = np.random.randint(0, q, (m,n))
     s = np.random.randint(0, q, (n,1))
     e = np.random.randint(-1, 2, (m,1))
-    #e = np.random.choice(3,m,p=[0.1,0.8,0.1])
-    #e = e - 1
-    #e = np.atleast_2d(e)
-    #e = np.transpose(e)
+    e = np.random.choice(3,m,p=[0.1,0.8,0.1])
+    e = e - 1
+    e = np.atleast_2d(e)
+    e = np.transpose(e)
     
    # print(e,"e")
     b = (np.dot(A,s) + e) % q
@@ -85,36 +88,113 @@ def crack2(ciphertext, public_key, q):
     GF = galois.GF(q)
 
     length = len(public_key[1])
-    A = GF(np.array(public_key[0],dtype=int))
-    b = GF(np.array(public_key[1],dtype=int))
+    A = np.array(public_key[0],dtype=int)
+    b = np.array(public_key[1],dtype=int)
 
     smaller_dimension = A.shape[1]
     base_case = np.zeros((length),dtype=int)
     for i in range(length):
         base_case[i] = i    
-    larger_dimension_q = A.shape[0] * q * A.shape[1]
-    potential_secrets = np.zeros((larger_dimension_q, smaller_dimension),dtype=int)
-
-    for i in range(len(potential_secrets)):
+    potential_secrets = dict()
+    condition = 0
+    error = 0
+    error1 = 0
+    best_secret = 0
+    best_secret_score = 0
+    second_best_secret_score = 0
+    iteration = 0
+    perms = np.random.permutation(base_case)[0:smaller_dimension]
+    print(perms,"perms")
+    print(A)
+    print(A[perms],"A[perms]")
+    print(b)
+    print(b[perms],"b[perms]")
+    x3 = np.linalg.solve(A[perms],b[perms])
+    x4 = np.matmul(np.linalg.inv(A[perms]),b[perms])
+    #print(x3,"x3")
+    #logging.info(x3)
+    #print(x4,"x4")
+    #logging.info(x4)
+    #print(hash(str(x3)),"hash(x3)")
+    #print(hash(x3),"hash(x3)")
+    while condition == 0:
         check = 0
         while check == 0:
             try:
+                #print("start")
                 A_reduced = A[np.random.permutation(base_case)[0:smaller_dimension]]
                 A_reduced = GF(A_reduced)
                 A_reduced_inv = np.linalg.inv(A_reduced)
-                A_reduced_inv = GF(A_reduced)
+
+                #A_reduced_inv = GF(A_reduced)
                 b_reduced = b[np.random.permutation(base_case)[0:smaller_dimension]]
                 b_reduced = GF(b_reduced)
-                x = np.matmul(A_reduced_inv,b_reduced)
-                potential_secrets[i] = x.flatten()
+                x = np.linalg.solve(A_reduced,b_reduced)
+                x1 = np.matmul(A_reduced_inv,b_reduced)
+                #print("yas?")
+                #hash1 = hash(x)
+                #print(hash1,"hash1")
+                #logging.info(hash(x))
+                #logging.info("hash")
+                #print("hash")
+                #logging.info(x.transpose())
+                #logging.info("x",x)
+                #logging.info("x1",x1)
+                #logging.info(x.flatten())
+                #print(x,"x")
+                #x = np.matmul(A_reduced_inv,b_reduced)
+                #np.array2string(x)
+                if hash(str(x)) in potential_secrets:
+                    #print("in")
+                    #print(potential_secrets[np.array2string(x)],"potential_secrets[np.array2string(x)]")
+                    #print(x,"x")
+                    potential_secrets[hash(str(x))] = potential_secrets[hash(str(x))] + 1
+                else:
+                    potential_secrets[hash(str(x))] = 1  
                 check = 1
+                #print(potential_secrets[np.array2string(x)],"potential_secrets[np.array2string(x)]")
+                if potential_secrets[hash(str(x))] > best_secret_score:
+                    best_secret = x
+                    best_secret_score = best_secret_score + 1
+                    #print(best_secret_score,"best_secret_score")
+                elif potential_secrets[hash(str(x))] > second_best_secret_score:
+                    second_best_secret_score = second_best_secret_score + 1
+                    #print(second_best_secret_score,"second_best_secret_score")
+                    #print(potential_secrets[np.array2string(x)],"potential_secrets[np.array2string(x)]")
+                    #print(x,"x")
+                    #int(best_secret,"best_secret")
+                
+                if best_secret_score - 10 > second_best_secret_score:
+                    condition = 1
+                    #if best_secret_score > 2:
+                    #    condition = 1
+                    #if iteration > 3:
+                    #    condition = 1
+                if best_secret_score > 10:
+                    condition = 1   
+                iteration = iteration + 1
+                error = error + 1
+                if error > 100:
+                    condition = 1
+                #print("end")
             except:
+                error1 = error1 + 1
+                if error1 > 100:
+                    condition = 1
                 continue
-      
-    mode = scipy.stats.mode(potential_secrets)
-    x = mode[0]
-    x = np.transpose(x) 
-    plaintext = decrypt(ciphertext,x,q)
+    #print(potential_secrets,"potential_secrets")
+    #mode = scipy.stats.mode(potential_secrets)
+    print(error,"error")
+    print(error1,"error1")
+    x1 = best_secret
+    print(x1,"x1")
+    print(best_secret_score,"best_secret_score")
+    print(second_best_secret_score,"second_best_secret_score")
+    
+    #logging.info(potential_secrets)
+    #x1 = np.transpose(x1) 
+    x1 = np.array(x1,dtype=int)
+    plaintext = decrypt(ciphertext,x1,q)
     return plaintext
 
 plaintext = np.array([0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1])
@@ -124,6 +204,10 @@ ciphertext = encrypt(plaintext, public_key, 29)
 public_key, private_key = keygen(13,4,14)
 plaintext = np.random.randint(0,2,(1,8))[0] 
 ciphertext = encrypt(plaintext, public_key, 13)
+print(plaintext)
+print(private_key,"private_key")
+
+
 
 print(crack2(ciphertext,public_key,13))
 print(plaintext)
